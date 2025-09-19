@@ -10,15 +10,33 @@ from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 from nltk.tokenize import word_tokenize
 from contractions import fix  # To handle contractions like don't -> do not
+import os
 
-# Load the trained model and TF-IDF vectorizer
-model = pickle.load(open("models/model.pkl", "rb"))
-tfidf = pickle.load(open("models/tfidf.pkl", "rb"))
+# Custom NLTK data directory for deployment
+NLTK_DATA_DIR = "./nltk_data"
+os.makedirs(NLTK_DATA_DIR, exist_ok=True)
+nltk.data.path.append(NLTK_DATA_DIR)
 
-nltk.download('punkt')
-nltk.download('punkt_tab')  # This might be necessary if punkt_tab is specifically required
-nltk.download('stopwords')
-nltk.download('wordnet')
+# Cached function to download NLTK data only once
+@st.cache_resource
+def load_nltk_data():
+    nltk.download('punkt', download_dir=NLTK_DATA_DIR, quiet=True)
+    nltk.download('stopwords', download_dir=NLTK_DATA_DIR, quiet=True)
+    nltk.download('wordnet', download_dir=NLTK_DATA_DIR, quiet=True)
+    # Add 'punkt_tab' if needed: nltk.download('punkt_tab', download_dir=NLTK_DATA_DIR, quiet=True)
+    return True
+
+# Call to load NLTK data
+load_nltk_data()
+
+# Load the trained model and TF-IDF vectorizer (cache for efficiency)
+@st.cache_resource
+def load_model_and_tfidf():
+    model = pickle.load(open("models/model.pkl", "rb"))
+    tfidf = pickle.load(open("models/tfidf.pkl", "rb"))
+    return model, tfidf
+
+model, tfidf = load_model_and_tfidf()
 
 # Initialize stopwords and lemmatizer
 stop_words = set(stopwords.words('english'))
@@ -102,8 +120,6 @@ st.markdown("This app detects **sarcasm** in text using advanced **machine learn
 st.sidebar.markdown("---")
 st.sidebar.markdown("**Created by Amra Sheikh**")
 
-
-
 # File uploader for PDF, TXT, and DOCX files
 uploaded_file = st.file_uploader("Upload a PDF, TXT, or DOCX file", type=["pdf", "txt", "docx"])
 
@@ -136,8 +152,3 @@ if st.button("Detect Sarcasm"):
         st.success(f"Prediction (from input text): **{result}**")
     else:
         st.error("Please upload a file or enter some text to get a prediction.")
-
-# Footer for added professionalism
-st.markdown(
-"**Created by Amra Sheikh**"
-)
